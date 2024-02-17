@@ -36,19 +36,8 @@ start_service() {
 	procd_set_param limits nofile="1000000 1000000"
 	procd_set_param stdout 0
 	procd_set_param stderr 0
-	procd_set_param respawn
+	procd_set_param respawn 300 5 10
 	procd_close_instance dae-wing
-
-	# daed-next
-	[ ! -d /var/daed-next ] && mkdir -p /var/daed-next
-	[ ! $(mountpoint -q /var/daed-next) ] && mount -t squashfs $WEB_SQUASHFS /var/daed-next
-	procd_open_instance daed-next
-	ARGS="PORT=$listen_port HOSTNAME=0.0.0.0"
-	procd_set_param command /bin/sh -c "$ARGS $NODE_BIN /var/daed-next/server.js"
-	procd_set_param stdout 0
-	procd_set_param stderr 0
-	procd_set_param respawn
-	procd_close_instance daed-next
 }
 
 service_triggers() {
@@ -56,9 +45,11 @@ service_triggers() {
 }
 
 stop_service() {
-	pgrep -f next-router-worker | xargs kill -9
 	sleep 2
-	umount /var/daed-next
+	mount_points=$(mount | grep '/tmp/daed-next' | awk '{print $3}')
+	for mp in $mount_points; do
+		umount -l "$mp" || { echo "Failed to force unmount $mp"; }
+	done
 }
 
 reload_service() {

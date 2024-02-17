@@ -13,7 +13,8 @@ function index()
     page.acl_depends = { "luci-app-daed-next" }
 
 	entry({"admin", "services", "daed-next", "basic"}, cbi("daed-next/basic"), _("Basic Setting"), 1).leaf = true
-	entry({"admin", "services", "daed-next", "log"}, cbi("daed-next/log"), _("Logs"), 2).leaf = true
+	entry({"admin", "services", "daed-next", "dashboard"}, template("daed-next/dashboard"), _("Dashboard"), 2).leaf = true
+	entry({"admin", "services", "daed-next", "log"}, cbi("daed-next/log"), _("Logs"), 3).leaf = true
 	entry({"admin", "services", "daed-next", "status"}, call("act_status")).leaf = true
 	entry({"admin", "services", "daed-next", "get_log"}, call("get_log")).leaf = true
 	entry({"admin", "services", "daed-next", "clear_log"}, call("clear_log")).leaf = true
