@@ -44,8 +44,8 @@ msgstr "未运行"
 msgid "Collecting data..."
 msgstr "收集数据..."
 
-msgid "Open Web Interface - (Need to turn on the dashboard switch)"
-msgstr "打开 Web 界面 - (需要打开仪表板开关)"
+msgid "Open Web Interface (Need to turn on the dashboard switch)"
+msgstr "打开 Web 界面 (需要打开仪表板开关) "
 
 msgid "The kernel does not support eBPF"
 msgstr "内核不支持 eBPF"
