@@ -5,13 +5,13 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=daed-next
-PKG_VERSION:=2023-12-02-102cb56
+PKG_VERSION:=2024-02-13-2d8c46b
 CORE_VERSION:=core-$(shell date "+%Y-%m-%d")
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_PROTO:=git
-PKG_SOURCE_VERSION:=102cb562b6962b44c47f38092284d2ab2506a702
+PKG_SOURCE_VERSION:=2d8c46b9f3b4d1d329ac89d31c090669a09c9276
 PKG_SOURCE_URL:=https://github.com/daeuniverse/daed-revived-next.git
 PKG_MIRROR_HASH:=skip
 
@@ -60,7 +60,7 @@ define Package/daed-next/conffiles
 endef
 
 define Download/daed-next
-  URL:=https://github.com/QiuSimons/luci-app-daed-next/releases/download/daed-web-$(PKG_VERSION)/
+  URL:=https://github.com/LovinYarn/luci-app-daed-next/releases/download/daed-web-$(PKG_VERSION)/
   URL_FILE:=daed-web-$(PKG_VERSION).squashfs
   FILE:=daed-web-$(PKG_VERSION).squashfs
   HASH:=skip
@@ -69,7 +69,7 @@ endef
 define Build/Prepare
 	( \
 	$(TAR) --strip-components=1 -C $(PKG_BUILD_DIR)/../ -xzf $(DL_DIR)/$(PKG_NAME)-$(PKG_VERSION).tar.gz ; \
-	rm -rf $(PKG_BUILD_DIR) && git clone https://github.com/daeuniverse/dae-wing $(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)/wing ; \
+	rm -rf $(PKG_BUILD_DIR) && git clone -b self_use https://github.com/daeuniverse/dae-wing $(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)/wing ; \
 	)
 endef
 
@@ -86,7 +86,7 @@ endif
 define Build/Compile
 	( \
 		pushd $(PKG_BUILD_DIR) ; \
-		rm -rf dae-core && git clone https://github.com/daeuniverse/dae dae-core ; \
+		rm -rf dae-core && git clone https://github.com/jschwinger233/dae dae-core ; \
 		rm -rf dae-core/control/kern/headers && git clone https://github.com/daeuniverse/dae_bpf_headers dae-core/control/kern/headers ; \
 		go mod tidy ; \
 		$(MAKE) deps ; \
