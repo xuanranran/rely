@@ -11,7 +11,7 @@ PKG_RELEASE:=1
 
 LUCI_TITLE:=LuCI support for daed-next
 LUCI_PKGARCH:=all
-LUCI_DEPENDS:=+daed-next +bash +luci-compat
+LUCI_DEPENDS:=+daed-next +bash +luci-compat +luci-i18n-daed-next-zh_Hans
 
 include $(TOPDIR)/feeds/luci/luci.mk
 
