@@ -26,7 +26,7 @@ jobs:
         env:
           ARCH: ${{ matrix.arch }}-openwrt-22.03
           FEEDNAME: packages_ci
-          PACKAGES: luci-app-daed
+          PACKAGES: luci-app-daed-next
           NO_REFRESH_CHECK: true
 
       - name: Upload artifacts
