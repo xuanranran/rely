@@ -5,12 +5,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=daed
-PKG_VERSION:=0.4.0rc1
+PKG_VERSION:=0.4.1
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).zip
 PKG_SOURCE_URL:=https://github.com/daeuniverse/daed/releases/download/v$(PKG_VERSION)/daed-full-src.zip?
-PKG_HASH:=05218cade6e79b54ec0caaa6448737e292d0a374c2f70f09e4cea8ef5b27039d
+PKG_HASH:=ff32be8428ee97d74470fa9b100c8ce50feea859b590213de41b1883b42ba62c
 
 PKG_LICENSE:=AGPL-3.0-only MIT
 PKG_LICENSE_FILES:=LICENSE wing/LICENSE
@@ -48,21 +48,8 @@ define Package/daed
   TITLE:=A Modern Dashboard For dae
   # You need enable KERNEL_DEBUG_INFO_BTF and KERNEL_BPF_EVENTS
   DEPENDS:=$(GO_ARCH_DEPENDS) $(BPF_DEPENDS) \
-    +ca-bundle +kmod-sched-core +kmod-sched-bpf +kmod-xdp-sockets-diag
-endef
-
-define Package/daed-geoip
-  $(call Package/daed/Default)
-  TITLE:=geoip for daed
-  DEPENDS:=+v2ray-geoip
-  PKGARCH:=all
-endef
-
-define Package/daed-geosite
-  $(call Package/daed/Default)
-  TITLE:=geosite for daed
-  DEPENDS:=+v2ray-geosite
-  PKGARCH:=all
+    +ca-bundle +kmod-sched-core +kmod-sched-bpf +kmod-xdp-sockets-diag \
+    +kmod-veth +v2ray-geoip +v2ray-geosite
 endef
 
 define Package/daed/description
@@ -80,7 +67,7 @@ define Download/daed-web
 	URL:=https://github.com/daeuniverse/daed/releases/download/v$(PKG_VERSION)
 	URL_FILE:=web.zip
 	FILE:=$(WEB_FILE)
-	HASH:=3fa3fa55d21379f82297e72f7ced9bb46c111fc6c481779a51584c232efb15bf
+	HASH:=80eb5f67efd95e78432aadc38a901f631c6483903bbcae995e47de1bd2e44976
 endef
 
 define Build/Prepare
@@ -126,6 +113,7 @@ define Build/Compile
 		BPF_CFLAGS="$(DAE_CFLAGS)" \
 		BPF_TARGET="bpfel,bpfeb" \
 		go generate control/control.go ; \
+		go generate trace/trace.go ; \
 		popd ; \
 		$(call GoPackage/Build/Compile) ; \
 	)
@@ -143,18 +131,6 @@ define Package/daed/install
 	$(INSTALL_BIN) $(CURDIR)/files/daed.init $(1)/etc/init.d/daed
 endef
 
-define Package/daed-geoip/install
-	$(INSTALL_DIR) $(1)/usr/share/daed
-	$(LN) ../v2ray/geoip.dat $(1)/usr/share/daed/geoip.dat
-endef
-
-define Package/daed-geosite/install
-	$(INSTALL_DIR) $(1)/usr/share/daed
-	$(LN) ../v2ray/geosite.dat $(1)/usr/share/daed/geosite.dat
-endef
-
 $(eval $(call Download,daed-web))
 $(eval $(call GoBinPackage,daed))
 $(eval $(call BuildPackage,daed))
-$(eval $(call BuildPackage,daed-geoip))
-$(eval $(call BuildPackage,daed-geosite))
