@@ -11,7 +11,7 @@ PKG_RELEASE:=1
 
 LUCI_TITLE:=LuCI support for DAED
 LUCI_PKGARCH:=all
-LUCI_DEPENDS:=+daed +daed-geoip +daed-geosite
+LUCI_DEPENDS:=+daed
 
 include $(TOPDIR)/feeds/luci/luci.mk
 
