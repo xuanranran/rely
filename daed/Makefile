@@ -5,12 +5,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=daed
-PKG_VERSION:=0.4.1
+PKG_VERSION:=0.6.0
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).zip
 PKG_SOURCE_URL:=https://github.com/daeuniverse/daed/releases/download/v$(PKG_VERSION)/daed-full-src.zip?
-PKG_HASH:=ff32be8428ee97d74470fa9b100c8ce50feea859b590213de41b1883b42ba62c
+PKG_HASH:=89100f1027790b94f94e84eee93c95ab073c0ccb1ebff4d6adc797907e0b4549
 
 PKG_LICENSE:=AGPL-3.0-only MIT
 PKG_LICENSE_FILES:=LICENSE wing/LICENSE
@@ -19,7 +19,6 @@ PKG_MAINTAINER:=Tianling Shen <cnsztl@immortalwrt.org>
 PKG_BUILD_DIR=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)/wing
 PKG_BUILD_DEPENDS:=golang/host bpf-headers
 PKG_BUILD_PARALLEL:=1
-PKG_USE_MIPS16:=0
 PKG_BUILD_FLAGS:=no-mips16
 
 GO_PKG:=github.com/daeuniverse/dae-wing
@@ -67,7 +66,7 @@ define Download/daed-web
 	URL:=https://github.com/daeuniverse/daed/releases/download/v$(PKG_VERSION)
 	URL_FILE:=web.zip
 	FILE:=$(WEB_FILE)
-	HASH:=80eb5f67efd95e78432aadc38a901f631c6483903bbcae995e47de1bd2e44976
+	HASH:=f8a5f28643c990408f7b6d324b4cc8b5e7445e6255689a5f10f5545be033c1ad
 endef
 
 define Build/Prepare
