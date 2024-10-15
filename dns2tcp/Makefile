@@ -18,7 +18,7 @@ PKG_LICENSE_FILES:=LICENSE
 
 PKG_BUILD_PARALLEL:=1
 PKG_USE_MIPS16:=0
-PKG_BUILD_FLAGS:=no-mips16 gc-sections lto
+PKG_BUILD_FLAGS:=no-mips16
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -30,7 +30,7 @@ define Package/dns2tcp
   URL:=https://github.com/zfl9/dns2tcp
 endef
 
-TARGET_CFLAGS+= $(FPIC)
+TARGET_CFLAGS+= $(FPIC) -Wl,--gc-sections -flto
 MAKE_FLAGS+= \
 	CFLAGS="-std=c99 $(TARGET_CFLAGS)" \
 	EVCFLAGS="$(TARGET_CFLAGS)"
