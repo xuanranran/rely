@@ -1,32 +1,23 @@
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8"
+
 msgid "DAED"
-msgstr ""
+msgstr "DAED"
 
-msgid "DAE Dashboard"
-msgstr "DAE 仪表板"
+msgid "DAE is a Linux high-performance transparent proxy solution based on eBPF, And DAED is a modern dashboard for dae."
+msgstr "DAE是一个基于eBPF的Linux高性能透明代理解决方案，而DAED是DAE的管理面板。"
 
-msgid "A Linux high-performance transparent proxy solution based on eBPF"
-msgstr "一个基于 eBPF 的 Linux 高性能透明代理解决方案"
+msgid "Base Setting"
+msgstr "基本设置"
 
-msgid "Enabled"
-msgstr "启用"
-
-msgid "Enable Logs"
-msgstr "启用日志"
-
-msgid "Logfile retention count"
-msgstr "日志文件保留数量"
-
-msgid "Logfile Max Size (MB)"
-msgstr "日志文件大小（MB）"
+msgid "Dashboard"
+msgstr "仪表板"
 
 msgid "Logs"
 msgstr "日志"
 
 msgid "Clear logs"
 msgstr "清空日志"
-
-msgid "Basic Setting"
-msgstr "基本设置"
 
 msgid "RUNNING"
 msgstr "运行中"
@@ -37,11 +28,32 @@ msgstr "未运行"
 msgid "Collecting data..."
 msgstr "收集数据..."
 
-msgid "Open Web Interface"
-msgstr "打开 Web 界面"
+msgid "Logfile retention count"
+msgstr "日志文件保留数量"
 
-msgid "Listen Address"
-msgstr "监听地址"
+msgid "Logfile Max Size (MB)"
+msgstr "日志文件大小（MB）"
 
-msgid "The kernel does not support eBPF"
-msgstr "内核不支持 eBPF"
+msgid "Set the DAED listen address"
+msgstr "设置监听地址"
+
+msgid "DAED is not running"
+msgstr "DAED 未运行"
+
+msgid "Please start the DAED service first and try again"
+msgstr "请先启动 DAED 服务后重试"
+
+msgid "Enable Auto Subscribe Update"
+msgstr "启用订阅自动更新"
+
+msgid "Update Cycle"
+msgstr "更新周期"
+
+msgid "Update Time (Every Day)"
+msgstr "更新时间（每天）"
+
+msgid "Username"
+msgstr "用户名"
+
+msgid "Password"
+msgstr "密码"
