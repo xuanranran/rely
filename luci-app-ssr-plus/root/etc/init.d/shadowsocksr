@@ -188,23 +188,17 @@ ln_start_bin() {
 	${file_func:-echolog "  - ${ln_name}"} "$@" >/dev/null 2>&1 &
 }
 
-add_dns_into_ipset() {
-	case "$1" in
-	gfw) ipset add gfwlist ${2%:*} 2>/dev/null ;;
-	oversea) ipset add oversea ${2%:*} 2>/dev/null ;;
-	*) ipset add ss_spec_wan_ac ${2%:*} nomatch 2>/dev/null ;;
-	esac
-}
-
 start_dns() {
 	local ssrplus_dns="$(uci_get_by_type global pdnsd_enable 0)"
 	local dnsserver="$(uci_get_by_type global tunnel_forward 8.8.4.4:53)"
 	local run_mode="$(uci_get_by_type global run_mode)"
 
 	if [ "$ssrplus_dns" != "0" ]; then
-		if [ -n "$dnsserver" ]; then
-			add_dns_into_ipset $run_mode $dnsserver
-		fi
+		case "$run_mode" in
+		gfw) ipset add gfwlist ${dnsserver%:*} 2>/dev/null ;;
+		oversea) ipset add oversea ${dnsserver%:*} 2>/dev/null ;;
+		*) ipset add ss_spec_wan_ac ${dnsserver%:*} nomatch 2>/dev/null ;;
+		esac
 		case "$ssrplus_dns" in
 		1)
 			ln_start_bin $(first_type dns2tcp) dns2tcp -L 127.0.0.1#$dns_port -R ${dnsserver/:/#}
@@ -214,26 +208,6 @@ start_dns() {
 			ln_start_bin $(first_type microsocks) microsocks -i 127.0.0.1 -p $tmp_dns_port ssrplus-dns
 			ln_start_bin $(first_type dns2socks) dns2socks 127.0.0.1:$tmp_dns_port $dnsserver 127.0.0.1:$dns_port -q
 			pdnsd_enable_flag=2
-			;;
-		3)
-			local mosdns_ipv6="$(uci_get_by_type global mosdns_ipv6)"
-			local mosdns_dnsserver="$(uci_get_by_type global tunnel_forward_mosdns)"
-			output=$(for i in $(echo $mosdns_dnsserver | sed "s/,/ /g"); do
-				dnsserver=${i%:*}
-				dnsserver=${i##*/}
-				add_dns_into_ipset $run_mode $dnsserver
-				echo "            - addr: $i"
-				echo "              enable_pipeline: true"
-			done)
-
-			awk -v line=14 -v text="$output" 'NR == line+1 {print text} 1' /etc/ssrplus/mosdns-config.yaml | sed "s/DNS_PORT/$dns_port/g" > $TMP_PATH/mosdns-config.yaml
-			if [ "$mosdns_ipv6" == "0" ]; then
-				sed -i "s/DNS_MODE/main_sequence_with_IPv6/g" $TMP_PATH/mosdns-config.yaml
-			else
-				sed -i "s/DNS_MODE/main_sequence_disable_IPv6/g" $TMP_PATH/mosdns-config.yaml
-			fi
-			ln_start_bin $(first_type mosdns) mosdns start -c $TMP_PATH/mosdns-config.yaml
-			pdnsd_enable_flag=3
 			;;
 		esac
 
@@ -495,33 +469,6 @@ start_udp() {
 	esac
 }
 
-shunt_dns_command() {
-	local shunt_dns_mode="$(uci_get_by_type global shunt_dns_mode)"
-	local shunt_dnsserver="$(uci_get_by_type global shunt_dnsserver)"
-	case "$shunt_dns_mode" in
-	1)
-		ln_start_bin $(first_type dns2socks) dns2socks 127.0.0.1:$tmp_port $shunt_dnsserver 127.0.0.1:$tmp_shunt_dns_port -q
-		;;
-	2)
-		local shunt_mosdns_ipv6="$(uci_get_by_type global shunt_mosdns_ipv6)"
-		local shunt_mosdns_dnsserver="$(uci_get_by_type global shunt_mosdns_dnsserver)"
-		output=$(for i in $(echo $shunt_mosdns_dnsserver | sed "s/,/ /g"); do
-			echo "            - addr: $i"
-			echo "              socks5: \"127.0.0.1:$tmp_port\""
-			echo "              enable_pipeline: true"
-		done)
-		awk -v line=14 -v text="$output" 'NR == line+1 {print text} 1' /etc/ssrplus/mosdns-config.yaml | sed "s/DNS_PORT/$tmp_shunt_dns_port/g" > $TMP_PATH/mosdns-config-shunt.yaml
-
-		if [ "$shunt_mosdns_ipv6" == "0" ]; then
-			sed -i "s/DNS_MODE/main_sequence_with_IPv6/g" $TMP_PATH/mosdns-config-shunt.yaml
-		else
-			sed -i "s/DNS_MODE/main_sequence_disable_IPv6/g" $TMP_PATH/mosdns-config-shunt.yaml
-		fi
-		ln_start_bin $(first_type mosdns) mosdns start -c $TMP_PATH/mosdns-config-shunt.yaml
-		;;
-	esac
-}
-
 start_shunt() {
 	local type=$(uci_get_by_name $SHUNT_SERVER type)
 	case "$type" in
@@ -535,14 +482,14 @@ start_shunt() {
 			local tmp_port=$tmp_shunt_local_port
 			ln_start_bin $(first_type ${type}local ${type}-local) ${type}-local -c $shunt_dns_config_file
 		fi
-		shunt_dns_command
+		ln_start_bin $(first_type dns2socks) dns2socks 127.0.0.1:$tmp_port 8.8.8.8:53 127.0.0.1:$tmp_shunt_dns_port -q
 		echolog "shunt:$(get_name $type) Started!"
 		;;
 	v2ray)
 		local tmp_port=${tmp_local_port:-$tmp_shunt_local_port}
 		gen_config_file $SHUNT_SERVER $type 3 $tmp_shunt_port $tmp_port
 		ln_start_bin $(first_type xray v2ray) v2ray run -c $shunt_config_file
-		shunt_dns_command
+		ln_start_bin $(first_type dns2socks) dns2socks 127.0.0.1:$tmp_port 8.8.8.8:53 127.0.0.1:$tmp_shunt_dns_port -q
 		echolog "shunt:$($(first_type xray v2ray) version | head -1) Started!"
 		;;
 	trojan)
@@ -554,7 +501,7 @@ start_shunt() {
 			local tmp_port=$tmp_shunt_local_port
 			ln_start_bin $(first_type trojan) $type --config $shunt_dns_config_file
 		fi
-		shunt_dns_command
+		ln_start_bin $(first_type dns2socks) dns2socks 127.0.0.1:$tmp_port 8.8.8.8:53 127.0.0.1:$tmp_shunt_dns_port -q
 		echolog "shunt:$($(first_type trojan) --version 2>&1 | head -1) Started!"
 		;;
 	naiveproxy)
@@ -566,7 +513,7 @@ start_shunt() {
 			local tmp_port=$tmp_shunt_local_port
 			ln_start_bin $(first_type naive) naive --config $shunt_dns_config_file
 		fi
-		shunt_dns_command
+		ln_start_bin $(first_type dns2socks) dns2socks 127.0.0.1:$tmp_port 8.8.8.8:53 127.0.0.1:$tmp_shunt_dns_port -q
 		echolog "shunt:$($(first_type "naive") --version 2>&1 | head -1) Started!"
 		redir_udp=0
 		;;
@@ -579,7 +526,7 @@ start_shunt() {
 			gen_config_file $SHUNT_SERVER $type 3 $tmp_shunt_port $tmp_port
 		fi
 		ln_start_bin $(first_type hysteria) hysteria client --config $shunt_config_file
-		shunt_dns_command
+		ln_start_bin $(first_type dns2socks) dns2socks 127.0.0.1:$tmp_port 8.8.8.8:53 127.0.0.1:$tmp_shunt_dns_port -q
 		echolog "shunt:$($(first_type hysteria) version | grep Version | awk '{print "Hysteria2: " $2}') Started!"
 		;;
 	tuic)
@@ -591,7 +538,7 @@ start_shunt() {
 		[ -n "$tmp_local_port" ] && tmp_port=$tmp_local_port || tmp_port=$tmp_shunt_local_port
 		gen_config_file $SHUNT_SERVER $type 3 $tmp_port		# make a tuic socks :304
 		ln_start_bin $(first_type tuic-client) tuic-client --config $shunt_dns_config_file
-		shunt_dns_command
+		ln_start_bin $(first_type dns2socks) dns2socks 127.0.0.1:$tmp_port 8.8.8.8:53 127.0.0.1:$tmp_shunt_dns_port -q
 		echolog "Netflix Separated Shunt Server:tuic-client $($(first_type tuic-client) --version) Started!"
 		# FIXME: ipt2socks cannot handle udp reply from tuic
 		#redir_udp=0
@@ -601,7 +548,7 @@ start_shunt() {
 		gen_config_file $SHUNT_SERVER $type 3 "10${tmp_shunt_port}" $tmp_port chain/$tmp_shunt_port #make a redir:303 and a socks:304
 		#echo "debug \$tmp_port=$tmp_port, \$tmp_shunt_port=${tmp_shunt_port},  \$tmp_shunt_local_port=$tmp_shunt_local_port"
 		ln_start_bin $(first_type shadow-tls) shadow-tls config --config $chain_config_file
-		shunt_dns_command
+		ln_start_bin $(first_type dns2socks) dns2socks 127.0.0.1:"${tmp_port}" 8.8.8.8:53 127.0.0.1:$tmp_shunt_dns_port -q
 		local chain_type=$(uci_get_by_name $SHUNT_SERVER chain_type)
 		case ${chain_type} in
 		vmess)
@@ -627,7 +574,7 @@ start_shunt() {
 	# 		local tmp_port=$tmp_shunt_local_port
 	# 		ln_start_bin $(first_type microsocks) microsocks -i 127.0.0.1 -p $tmp_port shunt-dns-ssr-plus
 	# 	fi
-	# 	shunt_dns_command
+	# 	ln_start_bin $(first_type dns2socks) dns2socks 127.0.0.1:$tmp_port 8.8.8.8:53 127.0.0.1:$tmp_shunt_dns_port -q
 	# 	echolog "shunt:$type REDIRECT/TPROXY Started!"
 	# 	;;
 	*)
@@ -639,7 +586,7 @@ start_shunt() {
 			local tmp_port=$tmp_shunt_local_port
 			ln_start_bin $(first_type microsocks) microsocks -i 127.0.0.1 -p $tmp_port shunt-dns-ssr-plus
 		fi
-		shunt_dns_command
+		ln_start_bin $(first_type dns2socks) dns2socks 127.0.0.1:$tmp_port 8.8.8.8:53 127.0.0.1:$tmp_shunt_dns_port -q
 		echolog "shunt:$type REDIRECT/TPROXY Started!"
 		;;
 	esac
@@ -938,11 +885,6 @@ start_server() {
 	server_service() {
 		[ "$(uci_get_by_name $1 enable 0)" == "0" ] && return 1
 		let server_count=server_count+1
-		if [ "$server_count" == "1" ]; then
-			if ! (iptables-save -t filter | grep SSR-SERVER-RULE >/dev/null); then
-				iptables -N SSR-SERVER-RULE && iptables -t filter -I INPUT -j SSR-SERVER-RULE
-			fi
-		fi
 		local type=$(uci_get_by_name $1 type)
 		case "$type" in
 		ss | ssr)
@@ -956,32 +898,23 @@ start_server() {
 			echolog "Server:Socks5 Server$server_count Started!"
 			;;
 		esac
-		iptables -t filter -A SSR-SERVER-RULE -p tcp --dport $(uci_get_by_name $1 server_port) -j ACCEPT
-		iptables -t filter -A SSR-SERVER-RULE -p udp --dport $(uci_get_by_name $1 server_port) -j ACCEPT
-		return 0
-	}
-	gen_serv_include() {
-		local FWI=$(uci get firewall.shadowsocksr.path 2>/dev/null)
-		[ -n "$FWI" ] || return 0
-		if [ ! -f $FWI ]; then
-			echo '#!/bin/sh' >$FWI
+		ssr_server_port=$(uci show shadowsocksr | grep 'server_config.*server_port' | awk -F"'" '{print $2}' | tr "\n" " ")
+		if [ -n "$ssr_server_port" ]; then
+			uci -q delete firewall.shadowsocksr_server
+			uci set firewall.shadowsocksr_server=rule
+			uci set firewall.shadowsocksr_server.name="shadowsocksr_server"
+			uci set firewall.shadowsocksr_server.target="ACCEPT"
+			uci set firewall.shadowsocksr_server.src="wan"
+			uci set firewall.shadowsocksr_server.dest_port="$ssr_server_port"
+			uci set firewall.shadowsocksr_server.enabled="1"
+			uci commit firewall
+			/etc/init.d/firewall reload >/dev/null 2>&1
 		fi
-		extract_rules() {
-			echo "*filter"
-			iptables-save -t filter | grep SSR-SERVER-RULE | sed -e "s/^-A INPUT/-I INPUT/"
-			echo 'COMMIT'
-		}
-		cat <<-EOF >>$FWI
-			iptables-save -c | grep -v "SSR-SERVER" | iptables-restore -c
-			iptables-restore -n <<-EOT
-			$(extract_rules)
-			EOT
-		EOF
+		return 0
 	}
 
 	config_load $NAME
 	config_foreach server_service server_config
-	gen_serv_include
 	return 0
 }
 
@@ -1114,12 +1047,6 @@ stop() {
 	unlock
 	set_lock
 	/usr/bin/ssr-rules -f
-	local srulecount=$(iptables -L | grep SSR-SERVER-RULE | wc -l)
-	if [ $srulecount -gt 0 ]; then
-		iptables -F SSR-SERVER-RULE
-		iptables -t filter -D INPUT -j SSR-SERVER-RULE
-		iptables -X SSR-SERVER-RULE 2>/dev/null
-	fi
 	if [ -z "$switch_server" ]; then
 		$PS -w | grep -v "grep" | grep ssr-switch | awk '{print $1}' | xargs kill -9 >/dev/null 2>&1 &
 		rm -f /var/lock/ssr-switch.lock
@@ -1130,7 +1057,7 @@ stop() {
 	( \
 		# Graceful kill first, so programs have the chance to stop its subprocesses
 		$PS -w | grep -v "grep" | grep "$TMP_PATH" | awk '{print $1}' | xargs kill >/dev/null 2>&1 ; \
-		sleep 3s; \
+		sleep 1s; \
 		# Force kill hanged programs
 		$PS -w | grep -v "grep" | grep "$TMP_PATH" | awk '{print $1}' | xargs kill -9 >/dev/null 2>&1 ; \
 	)
@@ -1148,6 +1075,9 @@ stop() {
 		rm -rf $DNSMASQ_CONF_DIR/dnsmasq-ssrplus.conf $TMP_DNSMASQ_PATH $TMP_PATH/*-ssr-*.json $TMP_PATH/ssr-server*.json
 		/etc/init.d/dnsmasq restart >/dev/null 2>&1
 	fi
+	uci -q delete firewall.shadowsocksr_server
+	uci commit firewall
+	/etc/init.d/firewall reload >/dev/null 2>&1
 	del_cron
 	unset_lock
 }
