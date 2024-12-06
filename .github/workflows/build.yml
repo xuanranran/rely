@@ -32,7 +32,7 @@ jobs:
         env:
           ARCH: ${{ matrix.arch }}-${{ matrix.sdk }}
           FEEDNAME: packages_ci
-          PACKAGES: luci-app-passwall
+          PACKAGES: luci-app-clouddrive2 clouddrive2
           NO_REFRESH_CHECK: true
 
       - name: Upload artifacts
