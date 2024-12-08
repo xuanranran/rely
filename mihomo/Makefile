@@ -98,5 +98,5 @@ define Build/Prepare
 	$(RM) -r $(PKG_BUILD_DIR)/rules/logic_test
 endef
 
-$(eval $(call GoBinPackage,mihomo))
-$(eval $(call BuildPackage,mihomo))
+$(eval $(call GoBinPackage,$(PKG_NAME)))
+$(eval $(call BuildPackage,$(PKG_NAME)))

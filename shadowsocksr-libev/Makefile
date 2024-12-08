@@ -61,5 +61,5 @@ TARGET_CFLAGS += -flto
 TARGET_LDFLAGS += -Wl,--gc-sections,--as-needed
 
 $(foreach component,$(SHADOWSOCKSR_COMPONENTS), \
-  $(eval $(call BuildPackage,shadowsocksr-libev-ssr-$(component))) \
+  $(eval $(call BuildPackage,$(PKG_NAME)-ssr-$(component))) \
 )
