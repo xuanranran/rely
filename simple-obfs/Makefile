@@ -1,13 +1,18 @@
-# SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Copyright (C) 2017-2019 Jian Chang <aa65535@live.com>
-# Copyright (C) 2021 ImmortalWrt.org
+#
+# Copyright (C) 2021 ImmortalWrt
+# <https://immortalwrt.org>
+#
+# This is free software, licensed under the GNU General Public License v3.
+# See /LICENSE for more information.
+#
 
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=simple-obfs
 PKG_VERSION:=0.0.5
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/shadowsocks/simple-obfs.git
@@ -27,26 +32,26 @@ PKG_INSTALL:=1
 include $(INCLUDE_DIR)/package.mk
 
 define Package/simple-obfs/template
-  SECTION:=net
-  CATEGORY:=Network
-  TITLE:=A simple obfuscating tool
-  URL:=https://github.com/shadowsocks/simple-obfs
-  DEPENDS:=+libpthread +libev
+	SECTION:=net
+	CATEGORY:=Network
+	TITLE:=Simple-obfs
+	URL:=https://github.com/shadowsocks/simple-obfs
+	DEPENDS:=+libpthread +libev
 endef
 
 define Package/simple-obfs-client
-  $(call Package/simple-obfs/template)
-  TITLE+= (client)
-  PROVIDES:=simple-obfs
+	$(call Package/simple-obfs/template)
+	TITLE+= (client)
+	PROVIDES:=simple-obfs
 endef
 
 define Package/simple-obfs-server
-  $(call Package/simple-obfs/template)
-  TITLE+= (server)
+	$(call Package/simple-obfs/template)
+	TITLE+= (server)
 endef
 
 define Package/simple-obfs/description
-  Simple-obfs is a simple obfusacting tool, designed as plugin server of shadowsocks.
+	Simple-obfs is a simple obfusacting tool, designed as plugin server of shadowsocks.
 endef
 
 Package/simple-obfs-client/description = $(Package/simple-obfs/description)
@@ -59,12 +64,12 @@ CONFIGURE_ARGS += \
 
 define Package/simple-obfs-client/install
 	$(INSTALL_DIR) $(1)/usr/bin
-	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/bin/obfs-local $(1)/usr/bin/
+	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/bin/obfs-local $(1)/usr/bin/obfs-local
 endef
 
 define Package/simple-obfs-server/install
 	$(INSTALL_DIR) $(1)/usr/bin
-	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/bin/obfs-server $(1)/usr/bin/
+	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/bin/obfs-server $(1)/usr/bin/obfs-server
 endef
 
 $(eval $(call BuildPackage,simple-obfs-client))
