@@ -6,7 +6,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=daed
 PKG_VERSION:=2025.11.03
-DAED_VERSION:=daed-dc70a1d
+DAED_VERSION:=daed-7b563b4
 WING_VERSION:=wing-6bb6a31
 CORE_VERSION:=core-7e67e31
 WING_HASH_SHORT:=$(shell echo $(WING_VERSION) | cut -d- -f2)
@@ -15,7 +15,7 @@ PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_PROTO:=git
-PKG_SOURCE_VERSION:=dc70a1d11b0c7fa7b2ea0d447bcd9e61b5c7be00
+PKG_SOURCE_VERSION:=7b563b4d46edb8fd5021eaf2ae201c8b5348535a
 PKG_SOURCE_URL:=https://github.com/daeuniverse/daed.git
 PKG_MIRROR_HASH:=skip
 
@@ -28,23 +28,13 @@ PKG_BUILD_DEPENDS:=golang/host bpf-headers
 PKG_BUILD_PARALLEL:=1
 PKG_BUILD_FLAGS:=no-mips16
 
-ifeq ($(ARCH),x86_64)
-  export BPF_KARCH:=x86
-else ifeq ($(ARCH),i386)
-  export BPF_KARCH:=x86
-else ifeq ($(ARCH),aarch64)
-  export BPF_KARCH:=arm64
-else
-  export BPF_KARCH:=$(ARCH)
-endif
-
 GO_PKG:=github.com/daeuniverse/dae-wing
 GO_PKG_LDFLAGS:= \
 	-s -w -X '$(GO_PKG)/db.AppDescription=$(PKG_NAME) is a integration solution of dae, API and UI.'
 GO_PKG_LDFLAGS_X= \
 	$(GO_PKG)/db.AppName=$(PKG_NAME) \
 	$(GO_PKG)/db.AppVersion=$(DAED_VERSION)_$(WING_VERSION)_$(CORE_VERSION)
-GO_PKG_TAGS:=embedallowed
+GO_PKG_TAGS:=embedallowed,trace
 
 include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/bpf.mk
@@ -102,10 +92,14 @@ define Build/Prepare
 		mkdir -p $(PKG_BUILD_DIR)/.node_tmp ; \
 		wget -qO - "$(NODE_URL)" | tar -xJ -C $(PKG_BUILD_DIR)/.node_tmp --strip-components=1 ; \
 		export PATH="$(PKG_BUILD_DIR)/.node_tmp/bin:$$$$PATH" ; \
+		export HOME="$(PKG_BUILD_DIR)/.node_tmp" ; \
 		npm install -g pnpm ; \
 		pushd $(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION) ; \
 		pnpm config set engine-strict false ; \
 		pnpm install --shamefully-hoist --no-frozen-lockfile ; \
+		mkdir -p node_modules/@daeuniverse ; \
+		rm -rf node_modules/@daeuniverse/dae-editor ; \
+		cp -r packages/dae-editor node_modules/@daeuniverse/ ; \
 		pnpm build ; \
 		popd ; \
 		mkdir -p $(PKG_BUILD_DIR)/webrender/web ; \
@@ -131,18 +125,20 @@ DAE_CFLAGS:= \
 define Build/Compile
 	( \
 		pushd $(PKG_BUILD_DIR) ; \
-		$(MAKE) deps ; \
+		export \
 		$(GO_GENERAL_BUILD_CONFIG_VARS) \
 		$(GO_PKG_BUILD_CONFIG_VARS) \
-		$(GO_PKG_BUILD_VARS); \
+		$(GO_PKG_BUILD_VARS) ; \
 		go generate ./... ; \
 		cd dae-core ; \
+		export \
 		BPF_CLANG="$(CLANG)" \
 		BPF_STRIP_FLAG="-strip=$(LLVM_STRIP)" \
 		BPF_CFLAGS="$(DAE_CFLAGS)" \
 		BPF_TARGET="bpfel,bpfeb" \
-		BPF_KARCH="$(BPF_KARCH)" \
+		BPF_TRACE_TARGET="$(GO_ARCH)" ; \
 		go generate control/control.go ; \
+		go generate trace/trace.go ; \
 		popd ; \
 		$(call GoPackage/Build/Compile) ; \
 	)
