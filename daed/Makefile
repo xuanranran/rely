@@ -5,8 +5,8 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=daed
-PKG_VERSION:=2025.12.10
-DAED_VERSION:=daed-3a934fc
+PKG_VERSION:=2025.12.07
+DAED_VERSION:=daed-f41f589
 WING_VERSION:=wing-6bb6a31
 CORE_VERSION:=core-7e67e31
 WING_HASH_SHORT:=$(shell echo $(WING_VERSION) | cut -d- -f2)
@@ -15,7 +15,7 @@ PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_PROTO:=git
-PKG_SOURCE_VERSION:=3a934fc352e37729f8a21ad6b7fd5d6662a2990f
+PKG_SOURCE_VERSION:=f41f5895446b272ff817988ae9d78cb041145884
 PKG_SOURCE_URL:=https://github.com/daeuniverse/daed.git
 PKG_MIRROR_HASH:=skip
 
@@ -101,8 +101,7 @@ define Build/Prepare
 		pnpm config set engine-strict false ; \
 		pnpm config set store-dir $(PKG_BUILD_DIR)/.home/.pnpm-store ; \
 		pnpm install --shamefully-hoist --no-frozen-lockfile ; \
-		export NODE_OPTIONS="--max-old-space-size=3072" ; \
-		TURBO_TELEMETRY_DISABLED=1 pnpm build -- --concurrency=1 ; \
+		TURBO_TELEMETRY_DISABLED=1 DO_NOT_TRACK=1 pnpm build ; \
 		popd ; \
 		mkdir -p $(PKG_BUILD_DIR)/webrender/web ; \
 		cp -rf $(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)/apps/web/dist/* $(PKG_BUILD_DIR)/webrender/web ; \
