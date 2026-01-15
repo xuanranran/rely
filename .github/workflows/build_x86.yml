@@ -1,0 +1,69 @@
+name: bulid x86 package
+
+on:
+ workflow_dispatch:
+  push:
+    tags:
+      - v.**
+
+jobs:
+  build:
+    name: Build ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - x86_64
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build
+        uses: sbwml/openwrt-gh-action-sdk@go1.23
+        env:
+          ARCH: ${{ matrix.arch }}-openwrt-22.03
+          FEEDNAME: packages_ci
+          PACKAGES: luci-app-daed
+          NO_REFRESH_CHECK: true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.arch }}
+          path: bin/packages/${{ matrix.arch }}/packages_ci/*.ipk
+
+      - name: Zip ipk packages
+        run: |
+          zip -j ${{ matrix.arch }}.zip bin/packages/${{ matrix.arch }}/packages_ci/*.ipk
+          echo -e "**文件说明** 🎈:\n" >> release.txt
+          echo -e "1. 默认ssr与passwall的插件与依赖整合包\n" >> release.txt
+          echo -e "2. 使用方法：将整合包上传到openwrt设备的tmp目录，输入命令 \`opkg install *.ipk\`\n" >> release.txt
+          echo -e "3. 默认压缩包里包含ssr passwall bypass passwall2 插件\n" >> release.txt
+          echo -e "4. 如果单独安装ssr与依赖，\`rm -rf {*passwall*,*bypass*,*vssr*}\`\n" >> release.txt
+          
+      - name: Create Release zip
+        uses: ncipollo/release-action@v1
+        with:
+          token: ${{ secrets.ACCESS_TOKEN }}
+          artifacts: "${{ matrix.arch }}.zip,bin/packages/${{ matrix.arch }}/packages_ci/*.ipk"
+          allowUpdates: true
+          replacesArtifacts: true
+          bodyFile: "release.txt"
+          tag: v1.1.${{ github.run_number }}_${{ matrix.arch }}
+
+      - name: Delete workflow runs
+        uses: Mattraks/delete-workflow-runs@main
+        with:
+          retain_days: 1
+          keep_minimum_runs: 0
+    
+      - name: Remove old Releases
+        uses: dev-drprasad/delete-older-releases@master
+        with:
+          keep_latest: 3
+          delete_tags: true
+        env:
+           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
