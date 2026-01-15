@@ -1,36 +1,23 @@
-# SPDX-License-Identifier: GPL-3.0-only
 #
-# Copyright (C) 2021-2022 ImmortalWrt.org
+# Copyright (C) 2015-2016 OpenWrt.org
+#
+# This is free software, licensed under the GNU General Public License v3.
+#
 
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=v2ray-geodata
+PKG_VERSION:=$(shell date "+%Y%m%d%H%M%S")
 PKG_RELEASE:=1
 
+PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)
+
 PKG_LICENSE_FILES:=LICENSE
-PKG_MAINTAINER:=Tianling Shen <cnsztl@immortalwrt.org>
+PKG_MAINTAINER:=sbwml <admin@cooluc.com>
 
 include $(INCLUDE_DIR)/package.mk
 
-GEOIP_VER:=202601080023
-GEOIP_FILE:=geoip.dat.$(GEOIP_VER)
-define Download/geoip
-  URL:=https://github.com/Loyalsoldier/geoip/releases/download/$(GEOIP_VER)/
-  URL_FILE:=geoip.dat
-  FILE:=$(GEOIP_FILE)
-  HASH:=1adb0ebd3926a0cb7ca6358ff01194c09975bed48c8166e244b4ef28ae9a701e
-endef
-
-GEOSITE_VER:=202601112214
-GEOSITE_FILE:=geosite.dat.$(GEOSITE_VER)
-define Download/geosite
-  URL:=https://github.com/Loyalsoldier/v2ray-rules-dat/releases/download/$(GEOSITE_VER)/
-  URL_FILE:=geosite.dat
-  FILE:=$(GEOSITE_FILE)
-  HASH:=4261d945c14caedda7b570a512789a66e93697bc301acc69e89b92ac6f6db061
-endef
-
-define Package/v2ray-geodata/template
+define Package/v2ray-geodata/default
   SECTION:=net
   CATEGORY:=Network
   SUBMENU:=IP Addresses and Names
@@ -39,40 +26,39 @@ define Package/v2ray-geodata/template
 endef
 
 define Package/v2ray-geoip
-  $(call Package/v2ray-geodata/template)
+  $(call Package/v2ray-geodata/default)
   TITLE:=GeoIP List for V2Ray
-  VERSION:=$(GEOIP_VER).$(PKG_RELEASE)
   LICENSE:=CC-BY-SA-4.0
 endef
 
 define Package/v2ray-geosite
-  $(call Package/v2ray-geodata/template)
+  $(call Package/v2ray-geodata/default)
   TITLE:=Geosite List for V2Ray
-  VERSION:=$(GEOSITE_VER).$(PKG_RELEASE)
-  LICENSE:=MIT
+  LICENSE:=GPL-3.0
 endef
 
-define Build/Prepare
-	$(call Build/Prepare/Default)
-ifneq ($(CONFIG_PACKAGE_v2ray-geoip),)
-	$(call Download,geoip)
-endif
-ifneq ($(CONFIG_PACKAGE_v2ray-geosite),)
-	$(call Download,geosite)
-endif
-endef
+GEOIP_URL:=https://github.com/Loyalsoldier/geoip/releases/latest/download/geoip.dat
+GEOSITE_URL:=https://github.com/Loyalsoldier/v2ray-rules-dat/releases/latest/download/geosite.dat
 
 define Build/Compile
+	( \
+		pushd $(PKG_BUILD_DIR) ; \
+		curl -L $(GEOIP_URL) -o geoip.dat --progress-bar ; \
+		curl -L $(GEOSITE_URL) -o geosite.dat --progress-bar ; \
+		[ "$(curl -sL $(GEOIP_URL).sha256sum | awk '{print $1}')" != "$(sha256sum geoip.dat | awk '{print $1}')" ] && exit 1 ; \
+		[ "$(curl -sL $(GEOSITE_URL).sha256sum | awk '{print $1}')" != "$(sha256sum geosite.dat | awk '{print $1}')" ] && exit 1 ; \
+		popd ; \
+	)
 endef
 
 define Package/v2ray-geoip/install
 	$(INSTALL_DIR) $(1)/usr/share/v2ray
-	$(INSTALL_DATA) $(DL_DIR)/$(GEOIP_FILE) $(1)/usr/share/v2ray/geoip.dat
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/geoip.dat $(1)/usr/share/v2ray/geoip.dat
 endef
 
 define Package/v2ray-geosite/install
 	$(INSTALL_DIR) $(1)/usr/share/v2ray
-	$(INSTALL_DATA) $(DL_DIR)/$(GEOSITE_FILE) $(1)/usr/share/v2ray/geosite.dat
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/geosite.dat $(1)/usr/share/v2ray/geosite.dat
 endef
 
 $(eval $(call BuildPackage,v2ray-geoip))
