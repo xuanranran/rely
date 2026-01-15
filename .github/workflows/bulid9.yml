@@ -1,14 +1,17 @@
 ﻿name: bulid 9 package
 
 on:
- workflow_dispatch:
+  workflow_dispatch:
   push:
-    tags:
-      - v*.**
+    paths:
+      - '.github/workflows/bulid9.yml'
+
+permissions:
+  contents: write
 
 jobs:
   build:
-    name: Build ${{ matrix.arch }}
+    name: Package ${{ matrix.arch }}-${{ matrix.sdk }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -41,55 +44,89 @@ jobs:
           - mipsel_74kc
           - mipsel_mips32
           - x86_64
+        sdk:
+          - "24.10.4" # For IPK
+          - "SNAPSHOT" # For APK
 
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Build
-        uses: sbwml/openwrt-gh-action-sdk@go1.23
+        uses: openwrt/gh-action-sdk@v9
         env:
-          ARCH: ${{ matrix.arch }}-openwrt-22.03
-          FEEDNAME: packages_ci
-          PACKAGES: luci-app-passwall luci-app-passwall2 luci-app-ssr-plus naiveproxy tuic-client
-          NO_REFRESH_CHECK: true
+          ARCH: ${{ matrix.arch }}-${{ matrix.sdk }}
+          NO_SHFMT_CHECK: true
+          PACKAGES: luci-app-bypass luci-app-daed luci-app-homeproxy luci-app-passwall luci-app-passwall2 luci-app-ssr-plus luci-app-vssr
+          V: sc
 
-      - name: Upload artifacts
+      - name: Prepare Artifacts
+        run: |
+          mkdir -p bin/artifacts
+          
+          echo "Finding packages..."
+          # Use find to locate packages, handling potential path variations
+          find bin/packages/ -type f -name "*.ipk" -exec cp {} bin/artifacts/ \; 2>/dev/null || true
+          find bin/packages/ -type f -name "*.apk" -exec cp {} bin/artifacts/ \; 2>/dev/null || true
+          
+          # Rename apk files if needed (append arch)
+          cd bin/artifacts
+          if ls *.apk 1> /dev/null 2>&1; then
+            for apk_file in *.apk; do
+              filename=$(basename "$apk_file")
+              # Skip already renamed or luci files (luci files are usually 'all' arch)
+              if [[ "$filename" == luci-* ]] || [[ "$filename" == *_${{ matrix.arch }}.apk ]]; then
+                 continue
+              fi
+              
+              # Append arch to filename
+              new_filename="${filename%.apk}_${{ matrix.arch }}.apk"
+              mv "$apk_file" "$new_filename"
+            done
+          fi
+          
+          # Check if we have any files to compress
+          if [ -z "$(ls -A .)" ]; then
+             echo "::error::No packages found in bin/packages/! Listing bin directory for debug:"
+             cd ../..
+             ls -R bin/
+             exit 1
+          fi
+
+          # Create tar.gz archive
+          TAR_NAME="packages-${{ matrix.arch }}-${{ matrix.sdk }}.tar.gz"
+          tar -czvf "$TAR_NAME" *
+          
+          # Clean up
+          mkdir -p ../../upload
+          mv "$TAR_NAME" ../../upload/
+          cd ../..
+          rm -rf bin/artifacts
+          mkdir -p bin/artifacts
+          mv upload/* bin/artifacts/
+
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.arch }}
-          path: bin/packages/${{ matrix.arch }}/packages_ci/*.ipk
+          name: package-${{ matrix.arch }}-${{ matrix.sdk }}
+          path: bin/artifacts/*
+          if-no-files-found: ignore
 
-      - name: Zip ipk packages
+      - name: Generate Release Tag
+        id: tag
         run: |
-          zip -j ${{ matrix.arch }}.zip bin/packages/${{ matrix.arch }}/packages_ci/*.ipk
-          echo -e "**文件说明** 🎈:\n" >> release.txt
-          echo -e "1. 默认ssr与passwall的插件与依赖整合包\n" >> release.txt
-          echo -e "2. 使用方法：将整合包上传到openwrt设备的tmp目录，输入命令 \`opkg install *.ipk\`\n" >> release.txt
-          echo -e "3. 默认压缩包里包含ssr passwall bypass passwall2 插件\n" >> release.txt
-          echo -e "4. 如果单独安装ssr与依赖，\`rm -rf {*passwall*,*bypass*,*vssr*}\`\n" >> release.txt
-          
-      - name: Create Release zip
-        uses: ncipollo/release-action@v1
-        with:
-          token: ${{ secrets.ACCESS_TOKEN }}
-          artifacts: "${{ matrix.arch }}.zip,bin/packages/${{ matrix.arch }}/packages_ci/*.ipk"
-          allowUpdates: true
-          replacesArtifacts: true
-          bodyFile: "release.txt"
-          tag: v3.1.${{ github.run_number }}_${{ matrix.arch }}
+          echo "release_tag=$(date +"%Y.%m.%d-%H%M")" >> $GITHUB_OUTPUT
 
-      - name: Delete workflow runs
-        uses: Mattraks/delete-workflow-runs@main
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         with:
-          retain_days: 6
-          keep_minimum_runs: 0
-    
-      - name: Remove old Releases
-        uses: dev-drprasad/delete-older-releases@master
-        with:
-          keep_latest: 28
-          delete_tags: true
-        env:
-           GITHUB_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          tag_name: ${{ steps.tag.outputs.release_tag }}
+          name: ${{ steps.tag.outputs.release_tag }}
+          body: |
+            OpenWrt Packages
+            
+            Build Time: ${{ steps.tag.outputs.release_tag }}
+            Arch: ${{ matrix.arch }}
+            SDK: ${{ matrix.sdk }}
+          files: bin/artifacts/*.tar.gz
