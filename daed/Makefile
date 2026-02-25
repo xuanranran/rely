@@ -5,10 +5,10 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=daed
-PKG_VERSION:=2026.02.20
+PKG_VERSION:=2026.02.25
 DAED_VERSION:=daed-f045ecd
 WING_VERSION:=wing-6bb6a31
-CORE_VERSION:=core-030902f
+CORE_VERSION:=core-c230acb
 WING_HASH_SHORT:=$(shell echo $(WING_VERSION) | cut -d- -f2)
 CORE_HASH_SHORT:=$(shell echo $(CORE_VERSION) | cut -d- -f2)
 PKG_RELEASE:=1
@@ -42,7 +42,7 @@ include $(TOPDIR)/feeds/packages/lang/golang/golang-package.mk
 
 GO_PKG_TARGET_VARS+= \
 	CGO_LDFLAGS="$(TARGET_LDFLAGS) -static" \
-	GOEXPERIMENT=newinliner,runtimefreegc,simd
+	GOEXPERIMENT=newinliner,simd
 GO_PKG_DEFAULT_LDFLAGS:=-w -s -linkmode external -extldflags '-static'
 
 define Package/daed/Default
@@ -80,13 +80,18 @@ define Build/Prepare
 	( \
 		$(TAR) --strip-components=1 -C $(PKG_BUILD_DIR)/../ -xzf $(DL_DIR)/$(PKG_NAME)-$(PKG_VERSION).tar.gz ; \
 		rm -rf $(PKG_BUILD_DIR) && git clone https://github.com/daeuniverse/dae-wing $(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)/wing && git -C $(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)/wing checkout $(WING_HASH_SHORT) ; \
-		rm -rf $(PKG_BUILD_DIR)/dae-core && git clone https://github.com/daeuniverse/dae $(PKG_BUILD_DIR)/dae-core && git -C $(PKG_BUILD_DIR)/dae-core checkout $(CORE_HASH_SHORT) ; \
+		rm -rf $(PKG_BUILD_DIR)/dae-core && git clone https://github.com/olicesx/dae $(PKG_BUILD_DIR)/dae-core && git -C $(PKG_BUILD_DIR)/dae-core checkout $(CORE_HASH_SHORT) ; \
 		pushd $(PKG_BUILD_DIR)/dae-core ; \
 		git submodule update --init ; \
-		go get -u=patch ; \
+        go get -u=patch ; \
 		go mod tidy ; \
 		popd ; \
-		pushd $(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)/wing ; \
+        rm -rf $(PKG_BUILD_DIR)/../outbound ; \
+		git clone --depth=1 -b perf/complete-optimizations https://github.com/olicesx/outbound.git $(PKG_BUILD_DIR)/../outbound ; \
+		pushd $(PKG_BUILD_DIR) ; \
+		go mod edit -replace github.com/daeuniverse/outbound=../outbound ; \
+		wget -qO - https://github.com/daeuniverse/dae-wing/commit/157668a.patch | patch -p1 -N || true ; \
+		go get -u=patch ; \
 		go mod tidy ; \
 		popd ; \
 		mkdir -p $(PKG_BUILD_DIR)/.node_tmp ; \
