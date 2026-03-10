@@ -72,14 +72,8 @@ endef
 define Build/Compile
 	$(PKG_BUILD_DIR)/shadow-kernel/scripts/config \
 		--file $(PKG_BUILD_DIR)/shadow-kernel/.config \
-		--disable LTO_CLANG \
-		--disable LTO_CLANG_THIN \
-		--disable LTO_CLANG_FULL \
-		--disable LTO_GCC \
-		--enable LTO_NONE \
 		--disable WERROR \
 		--enable KALLSYMS \
-		--enable PERF_EVENTS \
 		--enable TRACEPOINTS \
 		--enable DEBUG_KERNEL \
 		--disable DEBUG_INFO_NONE \
@@ -95,19 +89,8 @@ define Build/Compile
 		--enable BPF_JIT \
 		--enable BPF_JIT_DEFAULT_ON \
 		--enable BPF_JIT_ALWAYS_ON \
-		--enable BPF_STREAM_PARSER \
 		--enable FTRACE \
-		--enable KPROBES \
-		--enable KRETPROBES \
-		--enable KPROBE_EVENTS \
-		--enable UPROBES \
-		--enable UPROBE_EVENTS \
 		--enable BPF_EVENTS \
-		--enable CGROUPS \
-		--enable CGROUP_BPF \
-		--enable CGROUP_NET_CLASSID \
-		--enable CGROUP_NET_PRIO \
-		--enable NET_NS \
 		--enable NET_SCHED \
 		--enable NET_INGRESS \
 		--enable NET_EGRESS \
@@ -128,8 +111,6 @@ define Build/Compile
 		--enable NET_ACT_POLICE \
 		--enable NET_ACT_BPF \
 		--enable MACVLAN \
-		--enable XDP_SOCKETS \
-		--enable XDP_SOCKETS_DIAG \
 		--set-str EXTRA_FIRMWARE "" \
 		--set-str INITRAMFS_SOURCE ""
 
