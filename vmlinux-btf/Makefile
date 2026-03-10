@@ -89,7 +89,11 @@ define Build/Compile
 		--enable BPF_JIT \
 		--enable BPF_JIT_DEFAULT_ON \
 		--enable BPF_JIT_ALWAYS_ON \
+		--enable BPF_STREAM_PARSER \
 		--enable FTRACE \
+		--enable KPROBES \
+		--enable KRETPROBES \
+		--enable KPROBE_EVENTS \
 		--enable BPF_EVENTS \
 		--enable NET_SCHED \
 		--enable NET_INGRESS \
@@ -111,6 +115,8 @@ define Build/Compile
 		--enable NET_ACT_POLICE \
 		--enable NET_ACT_BPF \
 		--enable MACVLAN \
+		--enable XDP_SOCKETS \
+		--enable XDP_SOCKETS_DIAG \
 		--set-str EXTRA_FIRMWARE "" \
 		--set-str INITRAMFS_SOURCE ""
 
