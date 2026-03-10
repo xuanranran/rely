@@ -69,7 +69,6 @@ define Build/Prepare
 	cp $(LINUX_DIR)/.config $(PKG_BUILD_DIR)/shadow-kernel/.config
 endef
 
-
 define Build/Compile
 	$(PKG_BUILD_DIR)/shadow-kernel/scripts/config \
 		--file $(PKG_BUILD_DIR)/shadow-kernel/.config \
@@ -151,17 +150,14 @@ define Build/Compile
 		$(PKG_BUILD_DIR)/shadow-kernel/vmlinux
 endef
 
-
 define Build/Clean
 	rm -rf $(PKG_BUILD_DIR)
 endef
-
 
 define Package/vmlinux-btf/install
 	$(INSTALL_DIR) $(1)/usr/lib/debug/boot
 	$(INSTALL_DATA) $(PKG_BUILD_DIR)/vmlinux-btf $(1)/usr/lib/debug/boot/vmlinux
 	$(LN) vmlinux $(1)/usr/lib/debug/boot/vmlinux-$(LINUX_VERSION)
 endef
-
 
 $(eval $(call BuildPackage,vmlinux-btf))
