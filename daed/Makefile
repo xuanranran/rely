@@ -152,7 +152,7 @@ define Build/Compile
 		$(GO_PKG_BUILD_CONFIG_VARS) \
 		$(GO_PKG_BUILD_VARS) ; \
 		go generate ./... ; \
-		cd dae-core ; \
+		pushd dae-core ; \
 		export \
 		BPF_CLANG="$(CLANG)" \
 		BPF_STRIP_FLAG="-strip=$(LLVM_STRIP)" \
@@ -161,6 +161,9 @@ define Build/Compile
 		BPF_TRACE_TARGET="$(GO_ARCH)" ; \
 		go generate control/control.go ; \
 		go generate trace/trace.go ; \
+		go mod tidy ; \
+		popd ; \
+		go mod tidy ; \
 		popd ; \
 		$(call GoPackage/Build/Compile) ; \
 	)
