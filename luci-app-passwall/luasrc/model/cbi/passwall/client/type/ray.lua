@@ -328,7 +328,10 @@ o = s:option(Value, _n("hysteria2_auth_password"), translate("Auth Password"))
 o.password = true
 o:depends({ [_n("protocol")] = "hysteria2"})
 
-o = s:option(Value, _n("hysteria2_idle_timeout"), translate("Idle Timeout"), translate("Example:") .. "30s (4s-120s)")
+o = s:option(Value, _n("hysteria2_idle_timeout"), translate("Idle Timeout"), translate("Example:") .. "30s (4s~120s)")
+o:depends({ [_n("protocol")] = "hysteria2"})
+
+o = s:option(Value, _n("hysteria2_keep_alive_period"), translate("QUIC KeepAlive interval"), translate("Example:") .. "10s (2s~60s)")
 o:depends({ [_n("protocol")] = "hysteria2"})
 
 o = s:option(Flag, _n("hysteria2_disable_mtu_discovery"), translate("Disable MTU detection"))
@@ -406,7 +409,7 @@ o.validate = function(self, value)
 end
 
 o = s:option(ListValue, _n("ech_ForceQuery"), translate("ECH Query Policy"), translate("Controls the policy used when performing DNS queries for ECH configuration."))
-o.default = "none"
+o.default = "full"
 o:value("none")
 o:value("half")
 o:value("full")
