@@ -8,7 +8,7 @@ PKG_NAME:=daed
 PKG_VERSION:=2026.03.31
 DAED_VERSION:=daed-745dce1
 WING_VERSION:=wing-6bb6a31
-CORE_VERSION:=core-be073e5
+CORE_VERSION:=core-5489095
 WING_HASH_SHORT:=$(shell echo $(WING_VERSION) | cut -d- -f2)
 CORE_HASH_SHORT:=$(shell echo $(CORE_VERSION) | cut -d- -f2)
 PKG_RELEASE:=1
@@ -113,6 +113,7 @@ define Build/Prepare
 		go mod edit -replace github.com/daeuniverse/quic-go=../quic-go ; \
 		go get -u=patch ; \
 		go mod tidy ; \
+		wget -qO - https://github.com/daeuniverse/dae-wing/commit/9fc0ea8.patch | patch -p1 ; \
 		popd ; \
 		mkdir -p $(PKG_BUILD_DIR)/.node_tmp ; \
 		mkdir -p $(PKG_BUILD_DIR)/.node_tmp/config ; \
