@@ -113,7 +113,6 @@ define Build/Prepare
 		go mod edit -replace github.com/daeuniverse/quic-go=../quic-go ; \
 		go get -u=patch ; \
 		go mod tidy ; \
-		wget -qO - https://github.com/daeuniverse/dae-wing/commit/9fc0ea8.patch | patch -p1 ; \
 		popd ; \
 		mkdir -p $(PKG_BUILD_DIR)/.node_tmp ; \
 		mkdir -p $(PKG_BUILD_DIR)/.node_tmp/config ; \
