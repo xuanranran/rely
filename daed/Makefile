@@ -5,10 +5,10 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=daed
-PKG_VERSION:=2026.03.31
+PKG_VERSION:=2026.04.01
 DAED_VERSION:=daed-745dce1
 WING_VERSION:=wing-6bb6a31
-CORE_VERSION:=core-5489095
+CORE_VERSION:=core-51eca94
 WING_HASH_SHORT:=$(shell echo $(WING_VERSION) | cut -d- -f2)
 CORE_HASH_SHORT:=$(shell echo $(CORE_VERSION) | cut -d- -f2)
 PKG_RELEASE:=1
@@ -95,37 +95,41 @@ NODE_URL:=https://nodejs.org/dist/$(NODE_VERSION)/$(NODE_DIST).tar.xz
 
 define Build/Prepare
 	( \
-		$(TAR) --strip-components=1 -C $(PKG_BUILD_DIR)/../ -xzf $(DL_DIR)/$(PKG_NAME)-$(PKG_VERSION).tar.gz ; \
-		rm -rf $(PKG_BUILD_DIR) && git clone https://github.com/daeuniverse/dae-wing $(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)/wing && git -C $(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)/wing checkout $(WING_HASH_SHORT) ; \
-		rm -rf $(PKG_BUILD_DIR)/dae-core && git clone https://github.com/olicesx/dae $(PKG_BUILD_DIR)/dae-core && git -C $(PKG_BUILD_DIR)/dae-core checkout $(CORE_HASH_SHORT) ; \
-		pushd $(PKG_BUILD_DIR)/dae-core ; \
-		git submodule update --init ; \
-        go get -u=patch ; \
-		go mod tidy ; \
-		popd ; \
-        rm -rf $(PKG_BUILD_DIR)/../outbound ; \
+		rm -rf $(PKG_BUILD_DIR) ; \
+		mkdir -p $(PKG_BUILD_DIR) ; \
+		$(TAR) --strip-components=1 -C $(PKG_BUILD_DIR) -xzf $(DL_DIR)/$(PKG_NAME)-$(PKG_VERSION).tar.gz ; \
+		git clone https://github.com/daeuniverse/dae-wing $(PKG_BUILD_DIR)/wing && \
+			git -C $(PKG_BUILD_DIR)/wing checkout $(WING_HASH_SHORT) ; \
+		rm -rf $(PKG_BUILD_DIR)/dae-core ; \
+		git clone https://github.com/olicesx/dae $(PKG_BUILD_DIR)/dae-core && \
+			git -C $(PKG_BUILD_DIR)/dae-core checkout $(CORE_HASH_SHORT) ; \
+		rm -rf $(PKG_BUILD_DIR)/../outbound ; \
 		git clone --depth=1 -b perf/complete-optimizations https://github.com/olicesx/outbound.git $(PKG_BUILD_DIR)/../outbound ; \
-		pushd $(PKG_BUILD_DIR) ; \
-		go mod edit -replace github.com/daeuniverse/outbound=../outbound ; \
 		rm -rf $(PKG_BUILD_DIR)/../quic-go ; \
 		git clone --depth=1 -b main https://github.com/olicesx/quic-go.git $(PKG_BUILD_DIR)/../quic-go ; \
-		pushd $(PKG_BUILD_DIR) ; \
-		go mod edit -replace github.com/daeuniverse/quic-go=../quic-go ; \
-		go get -u=patch ; \
-		go mod tidy ; \
+		pushd $(PKG_BUILD_DIR)/dae-core ; \
+			git submodule update --init ; \
+			go get -u=patch ; \
+			go mod tidy ; \
 		popd ; \
-		mkdir -p $(PKG_BUILD_DIR)/.node_tmp ; \
+		pushd $(PKG_BUILD_DIR) ; \
+			wget -qO - https://github.com/QiuSimons/luci-app-daed/raw/refs/heads/kix/patchset/build_fixes.patch | patch -p1 ; \
+			go mod edit -replace github.com/daeuniverse/outbound=../outbound ; \
+			go mod edit -replace github.com/daeuniverse/quic-go=../quic-go ; \
+			go get -u=patch ; \
+			go mod tidy ; \
+		popd ; \
 		mkdir -p $(PKG_BUILD_DIR)/.node_tmp/config ; \
 		wget -qO - "$(NODE_URL)" | tar -xJ -C $(PKG_BUILD_DIR)/.node_tmp --strip-components=1 ; \
 		export PATH="$(PKG_BUILD_DIR)/.node_tmp/bin:$$$$PATH" ; \
 		export XDG_CONFIG_HOME="$(PKG_BUILD_DIR)/.node_tmp/config" ; \
 		npm install -g pnpm ; \
-		pushd $(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION) ; \
-		pnpm install ; \
-		pnpm build --filter daed ; \
+		pushd $(PKG_BUILD_DIR) ; \
+			pnpm install ; \
+			pnpm build --filter daed ; \
 		popd ; \
 		mkdir -p $(PKG_BUILD_DIR)/webrender/web ; \
-		cp -rf $(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)/apps/web/dist/* $(PKG_BUILD_DIR)/webrender/web ; \
+		cp -rf $(PKG_BUILD_DIR)/apps/web/dist/* $(PKG_BUILD_DIR)/webrender/web ; \
 		find $(PKG_BUILD_DIR)/webrender/web -type f -size +4k ! -name "*.gz" ! -name "*.woff"  ! -name "*.woff2" -exec sh -c '\
 			gzip -9 -k "{}"; \
 			if [ "$$$$(stat -c %s {})" -lt "$$$$(stat -c %s {}.gz)" ]; then \
@@ -152,7 +156,7 @@ define Build/Compile
 		$(GO_PKG_BUILD_CONFIG_VARS) \
 		$(GO_PKG_BUILD_VARS) ; \
 		go generate ./... ; \
-		pushd dae-core ; \
+		cd dae-core ; \
 		export \
 		BPF_CLANG="$(CLANG)" \
 		BPF_STRIP_FLAG="-strip=$(LLVM_STRIP)" \
@@ -161,9 +165,6 @@ define Build/Compile
 		BPF_TRACE_TARGET="$(GO_ARCH)" ; \
 		go generate control/control.go ; \
 		go generate trace/trace.go ; \
-		go mod tidy ; \
-		popd ; \
-		go mod tidy ; \
 		popd ; \
 		$(call GoPackage/Build/Compile) ; \
 	)
