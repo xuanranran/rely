@@ -6,7 +6,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=daed
 PKG_VERSION:=2026.04.01
-DAED_VERSION:=daed-745dce1
+DAED_VERSION:=daed-fad3fba
 WING_VERSION:=wing-6bb6a31
 CORE_VERSION:=core-51eca94
 WING_HASH_SHORT:=$(shell echo $(WING_VERSION) | cut -d- -f2)
@@ -15,7 +15,7 @@ PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_PROTO:=git
-PKG_SOURCE_VERSION:=745dce1185f1d1fe13cf9dbf7a5b9ce036e9e7a2
+PKG_SOURCE_VERSION:=fad3fba4047c294ac110abab4d1aab9daaff55bf
 PKG_SOURCE_URL:=https://github.com/daeuniverse/daed.git
 PKG_MIRROR_HASH:=skip
 
@@ -23,15 +23,20 @@ PKG_LICENSE:=AGPL-3.0-only MIT
 PKG_LICENSE_FILES:=LICENSE wing/LICENSE
 PKG_MAINTAINER:=Tianling Shen <cnsztl@immortalwrt.org>
 
-PKG_BUILD_DIR=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)/wing
+DAED_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
+PKG_BUILD_DIR:=$(DAED_BUILD_DIR)/wing
+
 PKG_BUILD_DEPENDS:=golang/host bpf-headers
 PKG_BUILD_PARALLEL:=1
 PKG_BUILD_FLAGS:=no-mips16
 
 GO_PKG:=github.com/daeuniverse/dae-wing
+
 GO_PKG_LDFLAGS:= \
-	-s -w -X '$(GO_PKG)/db.AppDescription=$(PKG_NAME) is a integration solution of dae, API and UI.'
-GO_PKG_LDFLAGS_X= \
+	-s -w -buildid= \
+	-linkmode external -extldflags '-static -Wl,-s' \
+	-X '$(GO_PKG)/db.AppDescription=$(PKG_NAME) is a integration solution of dae, API and UI.'
+GO_PKG_LDFLAGS_X:= \
 	$(GO_PKG)/db.AppName=$(PKG_NAME) \
 	$(GO_PKG)/db.AppVersion=$(DAED_VERSION)_$(WING_VERSION)_$(CORE_VERSION)
 GO_PKG_TAGS:=embedallowed,trace
@@ -40,10 +45,12 @@ include $(INCLUDE_DIR)/package.mk
 include $(INCLUDE_DIR)/bpf.mk
 include $(TOPDIR)/feeds/packages/lang/golang/golang-package.mk
 
+GO_PKG_BUILD_VARS+= \
+	GOFLAGS="-trimpath -buildvcs=false"
+
 GO_PKG_TARGET_VARS+= \
-	CGO_LDFLAGS="$(TARGET_LDFLAGS) -static" \
+	CGO_LDFLAGS="$(TARGET_LDFLAGS) -static -Wl,-s" \
 	GOEXPERIMENT=newinliner,simd
-GO_PKG_DEFAULT_LDFLAGS:=-w -s -linkmode external -extldflags '-static'
 
 define Package/daed/Default
   SECTION:=net
@@ -90,23 +97,21 @@ endef
 NODE_VERSION:=v24.12.0
 NODE_DIST:=node-$(NODE_VERSION)-linux-x64
 NODE_URL:=https://nodejs.org/dist/$(NODE_VERSION)/$(NODE_DIST).tar.xz
-# NODE_DIST:=node-$(NODE_VERSION)-linux-x64-musl
-# NODE_URL:=https://unofficial-builds.nodejs.org/download/release/$(NODE_VERSION)/$(NODE_DIST).tar.xz
 
 define Build/Prepare
 	( \
-		rm -rf $(PKG_BUILD_DIR) ; \
-		mkdir -p $(PKG_BUILD_DIR) ; \
-		$(TAR) --strip-components=1 -C $(PKG_BUILD_DIR) -xzf $(DL_DIR)/$(PKG_NAME)-$(PKG_VERSION).tar.gz ; \
-		git clone https://github.com/daeuniverse/dae-wing $(PKG_BUILD_DIR)/wing && \
-			git -C $(PKG_BUILD_DIR)/wing checkout $(WING_HASH_SHORT) ; \
+		rm -rf $(DAED_BUILD_DIR) ; \
+		mkdir -p $(DAED_BUILD_DIR) ; \
+		$(TAR) --strip-components=1 -C $(DAED_BUILD_DIR) -xzf $(DL_DIR)/$(PKG_NAME)-$(PKG_VERSION).tar.gz ; \
+		git clone https://github.com/daeuniverse/dae-wing $(PKG_BUILD_DIR) && \
+			git -C $(PKG_BUILD_DIR) checkout $(WING_HASH_SHORT) ; \
 		rm -rf $(PKG_BUILD_DIR)/dae-core ; \
 		git clone https://github.com/olicesx/dae $(PKG_BUILD_DIR)/dae-core && \
 			git -C $(PKG_BUILD_DIR)/dae-core checkout $(CORE_HASH_SHORT) ; \
-		rm -rf $(PKG_BUILD_DIR)/../outbound ; \
-		git clone --depth=1 -b perf/complete-optimizations https://github.com/olicesx/outbound.git $(PKG_BUILD_DIR)/../outbound ; \
-		rm -rf $(PKG_BUILD_DIR)/../quic-go ; \
-		git clone --depth=1 -b main https://github.com/olicesx/quic-go.git $(PKG_BUILD_DIR)/../quic-go ; \
+		rm -rf $(DAED_BUILD_DIR)/outbound ; \
+		git clone --depth=1 -b perf/complete-optimizations https://github.com/olicesx/outbound.git $(DAED_BUILD_DIR)/outbound ; \
+		rm -rf $(DAED_BUILD_DIR)/quic-go ; \
+		git clone --depth=1 -b main https://github.com/olicesx/quic-go.git $(DAED_BUILD_DIR)/quic-go ; \
 		pushd $(PKG_BUILD_DIR)/dae-core ; \
 			git submodule update --init ; \
 			go get -u=patch ; \
@@ -119,17 +124,18 @@ define Build/Prepare
 			go get -u=patch ; \
 			go mod tidy ; \
 		popd ; \
-		mkdir -p $(PKG_BUILD_DIR)/.node_tmp/config ; \
-		wget -qO - "$(NODE_URL)" | tar -xJ -C $(PKG_BUILD_DIR)/.node_tmp --strip-components=1 ; \
-		export PATH="$(PKG_BUILD_DIR)/.node_tmp/bin:$$$$PATH" ; \
-		export XDG_CONFIG_HOME="$(PKG_BUILD_DIR)/.node_tmp/config" ; \
+		mkdir -p $(DAED_BUILD_DIR)/.node_tmp/config ; \
+		wget -qO - "$(NODE_URL)" | tar -xJ -C $(DAED_BUILD_DIR)/.node_tmp --strip-components=1 ; \
+		export PATH="$(DAED_BUILD_DIR)/.node_tmp/bin:$$$$PATH" ; \
+		export XDG_CONFIG_HOME="$(DAED_BUILD_DIR)/.node_tmp/config" ; \
 		npm install -g pnpm ; \
-		pushd $(PKG_BUILD_DIR) ; \
+		pushd $(DAED_BUILD_DIR) ; \
 			pnpm install ; \
 			pnpm build --filter daed ; \
 		popd ; \
 		mkdir -p $(PKG_BUILD_DIR)/webrender/web ; \
-		cp -rf $(PKG_BUILD_DIR)/apps/web/dist/* $(PKG_BUILD_DIR)/webrender/web ; \
+		cp -rf $(DAED_BUILD_DIR)/apps/web/dist/* $(PKG_BUILD_DIR)/webrender/web ; \
+		find $(PKG_BUILD_DIR)/webrender/web -name "*.map" -type f -delete ; \
 		find $(PKG_BUILD_DIR)/webrender/web -type f -size +4k ! -name "*.gz" ! -name "*.woff"  ! -name "*.woff2" -exec sh -c '\
 			gzip -9 -k "{}"; \
 			if [ "$$$$(stat -c %s {})" -lt "$$$$(stat -c %s {}.gz)" ]; then \
@@ -138,7 +144,7 @@ define Build/Prepare
 				rm {}; \
 			fi' \
 		";" ; \
-		rm -rf $(PKG_BUILD_DIR)/.node_tmp ; \
+		rm -rf $(DAED_BUILD_DIR)/.node_tmp ; \
 	)
 endef
 
@@ -163,11 +169,11 @@ define Build/Compile
 		BPF_CFLAGS="$(DAE_CFLAGS)" \
 		BPF_TARGET="bpfel,bpfeb" \
 		BPF_TRACE_TARGET="$(GO_ARCH)" ; \
-		go generate control/control.go ; \
-		go generate trace/trace.go ; \
+		go generate ./control/control.go ; \
+		go generate ./trace/trace.go ; \
 		popd ; \
-		$(call GoPackage/Build/Compile) ; \
 	)
+	$(call GoPackage/Build/Compile)
 endef
 
 define Package/daed/install
