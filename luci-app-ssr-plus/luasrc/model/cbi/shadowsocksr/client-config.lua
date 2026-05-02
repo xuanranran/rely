@@ -334,7 +334,7 @@ end
 	if is_finded("mihomo") then
 		o:value("clash", translate("Clash/Mihomo"))
 	end
-	if is_finded("tuic-client") then
+	if is_finded("mihomo") then
 		o:value("tuic", translate("TUIC"))
 	end
 	if is_finded("shadow-tls") and is_finded("sslocal") then
@@ -455,7 +455,7 @@ o:value("http", translate("HTTP"))
 o:depends("type", "v2ray")
 
 o = s:option(Value, "server", translate("Server Address"))
-o.datatype = "host"
+o.datatype = "or(host,ip6addr)"
 o.rmempty = false
 o:depends("type", "ssr")
 o:depends("type", "ss")
@@ -789,7 +789,7 @@ o:depends("type", "tuic")
 --Tuic IP
 o = s:option(Value, "tuic_ip", translate("TUIC Server IP Address"))
 o.rmempty = true
-o.datatype = "ip4addr"
+o.datatype = "ipaddr"
 o.default = ""
 o:depends("type", "tuic")
 
