@@ -270,12 +270,24 @@ local function append_client_policy_rules(runtime_path)
 		return false
 	end
 
+	local valid_policies = {}
+	for _, proxy in ipairs(doc.proxies or {}) do
+		if type(proxy) == "table" and proxy.name and proxy.name ~= "" then
+			valid_policies[tostring(proxy.name)] = true
+		end
+	end
+	for _, group in ipairs(doc["proxy-groups"] or {}) do
+		if type(group) == "table" and group.name and group.name ~= "" then
+			valid_policies[tostring(group.name)] = true
+		end
+	end
+
 	local custom_rules = {}
 	uci:foreach("shadowsocksr", "clash_client_group", function(section)
 		if tostring(section.enabled or "0") == "1" then
 			local ip_addr = tostring(section.ip_addr or "")
 			local policy_group = tostring(section.policy_group or "")
-			if ip_addr ~= "" and policy_group ~= "" then
+			if ip_addr ~= "" and policy_group ~= "" and valid_policies[policy_group] then
 				if not ip_addr:find("/", 1, true) then
 					ip_addr = ip_addr .. "/32"
 				end
@@ -497,7 +509,7 @@ local function normalize_plugin_name(plugin)
 	return value
 end
 
-local function apply_shadowsocks_plugin(proxy, sid)
+local function build_shadowsocks_plugin(proxy, sid)
 	local plugin = normalize_plugin_name(get_server_field(sid, "plugin", ""))
 	local plugin_opts = parse_plugin_opts(get_server_field(sid, "plugin_opts", ""))
 
@@ -514,7 +526,7 @@ local function apply_shadowsocks_plugin(proxy, sid)
 		return
 	end
 
-	if plugin == "v2ray-plugin" then
+	if plugin == "v2ray-plugin" or plugin == "xray-plugin" then
 		proxy.plugin = "v2ray-plugin"
 		proxy["plugin-opts"] = {
 			mode = plugin_opts.mode or "websocket",
@@ -539,25 +551,19 @@ local function apply_shadowsocks_plugin(proxy, sid)
 		proxy["plugin-opts"] = {
 			host = host ~= "" and host or nil,
 			port = tonumber(port) or nil,
-			password = plugin_opts.password or plugin_opts.passwd or nil,
+			password = plugin_opts.passwd or plugin_opts.password or nil,
 			version = version
 		}
-		if get_server_field(sid, "client_fingerprint", "") ~= "" then
-			proxy["client-fingerprint"] = get_server_field(sid, "client_fingerprint", "")
-		end
 		return
 	end
 
-	if plugin == "kcptun" then
-		proxy.plugin = "kcptun"
+	if plugin == "kcptun" or plugin == "kcp-tun" then
+		proxy.plugin = "kcp-tun"
 		proxy["plugin-opts"] = {
-			mode = plugin_opts.mode or "fast",
 			host = plugin_opts.host or nil,
 			port = tonumber(plugin_opts.port) or nil,
-			key = plugin_opts.key or plugin_opts.password or plugin_opts.passwd or nil,
-			mtu = tonumber(plugin_opts.mtu) or nil,
-			sndwnd = tonumber(plugin_opts.sndwnd) or nil,
-			rcvwnd = tonumber(plugin_opts.rcvwnd) or nil
+			key = plugin_opts.key or plugin_opts.passwd or plugin_opts.password or nil,
+			mode = plugin_opts.mode or nil
 		}
 		return
 	end
@@ -568,16 +574,17 @@ local function apply_shadowsocks_plugin(proxy, sid)
 	end
 end
 
-local function apply_kcptun_legacy(proxy, sid)
+local function build_kcptun_plugin(proxy, sid)
 	if not bool_enabled(get_server_field(sid, "kcp_enable", "0")) then
 		return
 	end
-	proxy.plugin = "kcptun"
+
+	proxy.plugin = "kcp-tun"
 	proxy["plugin-opts"] = {
-		mode = "fast",
 		host = get_server_field(sid, "server", ""),
 		port = tonumber(get_server_field(sid, "kcp_port", "0")) or nil,
 		key = get_server_field(sid, "kcp_password", ""),
+		mode = "fast",
 		mtu = 1350
 	}
 end
@@ -598,9 +605,12 @@ local function build_shadowsocks_runtime_doc(sid, local_port, socks_port, mode)
 		udp = true,
 		tfo = bool_enabled(get_server_field(sid, "fast_open", "0"))
 	}
-	apply_kcptun_legacy(proxy, sid)
+
+	if get_server_field(sid, "type", "") == "ss" then
+		build_kcptun_plugin(proxy, sid)
+	end
 	if proxy.plugin == nil then
-		apply_shadowsocks_plugin(proxy, sid)
+		build_shadowsocks_plugin(proxy, sid)
 	end
 
 	local doc = {
@@ -671,6 +681,16 @@ local function build_shadowsocks_server_doc(sid)
 		udp = true,
 		tfo = bool_enabled(get_server_field(sid, "fast_open", "0"))
 	}
+
+	local plugin = normalize_plugin_name(get_server_field(sid, "plugin", ""))
+	if plugin == "obfs-local" then
+		local plugin_opts = parse_plugin_opts(get_server_field(sid, "plugin_opts", ""))
+		listener.obfs = plugin_opts.obfs or plugin_opts.mode or "http"
+		listener.obfs_opts = {
+			mode = plugin_opts.obfs or plugin_opts.mode or "http",
+			host = plugin_opts.obfs_host or plugin_opts.host or nil
+		}
+	end
 
 	return {
 		["allow-lan"] = true,
