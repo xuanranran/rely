@@ -139,8 +139,7 @@ if Process_list:find("ssr.server") then
 end
 
 if  Process_list:find("ssrplus/bin/dns2tcp") or
-    Process_list:find("ssrplus/bin/mosdns") or
-    Process_list:find("chinadns.*127.0.0.1.*5335") then
+    Process_list:find("ssrplus/bin/mosdns") then
 	pdnsd_run = 1
 end
 
