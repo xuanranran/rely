@@ -372,46 +372,6 @@ local function clash_api_request(sid, method, path, body)
 	}
 end
 
-local function clash_delay_ok(sid, candidates, probe_url)
-	local raw = clash_api_request(sid, "GET", "/proxies")
-	local parsed = raw and json.parse(raw.body or "") or nil
-	local proxies = parsed and parsed.proxies or nil
-	local tried = {}
-
-	if type(proxies) ~= "table" then
-		return false
-	end
-
-	local function test_proxy(name)
-		if not name or name == "" or tried[name] or not proxies[name] then
-			return false
-		end
-		tried[name] = true
-		local delay_raw = clash_api_request(
-			sid,
-			"GET",
-			"/proxies/" .. urlencode(name) .. "/delay?timeout=5000&url=" .. urlencode(probe_url)
-		)
-		local delay_data = delay_raw and json.parse(delay_raw.body or "") or nil
-		return delay_data and tonumber(delay_data.delay or 0) and tonumber(delay_data.delay or 0) > 0
-	end
-
-	for _, name in ipairs(candidates or {}) do
-		if test_proxy(name) then
-			return true
-		end
-
-		local info = proxies[name]
-		if type(info) == "table" and type(info.now) == "string" and info.now ~= "" then
-			if test_proxy(info.now) then
-				return true
-			end
-		end
-	end
-
-	return false
-end
-
 local function use_fw4_backend()
 	return luci.sys.call("command -v fw4 >/dev/null") == 0
 end
@@ -1229,42 +1189,7 @@ end
 function check_status()
 	local e = {}
 	local target = luci.http.formvalue("set") or ""
-	local sid = uci:get_first("shadowsocksr", "global", "global_server", "nil")
-	local stype = sid ~= "nil" and (uci:get("shadowsocksr", sid, "type") or "") or ""
-
-	if stype == "clash" and is_active_clash_node(sid) then
-		if target == "baidu" then
-			e.ret = luci.sys.call("curl -I -m 5 http://www.baidu.com >/dev/null 2>&1")
-			luci.http.prepare_content("application/json")
-			luci.http.write_json(e)
-			return
-		end
-
-		if target == "google" then
-			e.ret = luci.sys.call("curl -I -m 5 http://www.gstatic.com/generate_204 >/dev/null 2>&1")
-			luci.http.prepare_content("application/json")
-			luci.http.write_json(e)
-			return
-		end
-
-		local profile_map = {
-			google = {
-				url = "http://www.gstatic.com/generate_204",
-				candidates = { "自动选择", "故障转移", "Proxy", "GLOBAL" }
-			},
-			baidu = {
-				url = "http://www.baidu.com",
-				candidates = { "Domestic", "DIRECT", "GLOBAL" }
-			}
-		}
-		local profile = profile_map[target] or {
-			url = "http://www." .. target .. ".com",
-			candidates = { "自动选择", "故障转移", "Proxy", "Domestic", "DIRECT", "GLOBAL" }
-		}
-		e.ret = clash_delay_ok(sid, profile.candidates, profile.url) and 0 or 1
-	else
-		e.ret = luci.sys.call("curl -m 3 -sS -o /dev/null http://www." .. target .. ".com >/dev/null 2>&1")
-	end
+	e.ret = luci.sys.call("curl -m 3 -sS -o /dev/null http://www." .. target .. ".com >/dev/null 2>&1")
 	luci.http.prepare_content("application/json")
 	luci.http.write_json(e)
 end
