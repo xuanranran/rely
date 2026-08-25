@@ -41,6 +41,12 @@ GO_PKG_LDFLAGS_X+=github.com/anytls/sing-anytls/util.Verison=mihomo/1.19.27
 include $(INCLUDE_DIR)/package.mk
 include $(TOPDIR)/feeds/packages/lang/golang/golang-package.mk
 
+# The host Go toolchain enables the jsonv2 GOEXPERIMENT, which makes
+# go-json-experiment/json alias encoding/json/v2. The revision pinned by
+# sing-box 1.13.x still expects the older API (json.SkipFunc,
+# json.DiscardUnknownMembers), so build against its own implementation.
+GO_PKG_BUILD_VARS += GOEXPERIMENT=nojsonv2
+
 define Package/sing-box
   SECTION:=net
   CATEGORY:=Network
