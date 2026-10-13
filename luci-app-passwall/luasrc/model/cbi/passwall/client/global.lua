@@ -496,7 +496,7 @@ if has_smartdns then
 	o:value("direct", translate("Direct DNS"))
 	o:value("auto", translate("Auto"))
 	o.description = desc
-		.. "<li>" .. translate("Auto: Query both direct and remote DNS, filter out non-mainland China IPs from direct DNS, then select the best result based on IP speed tests.") .. "</li>"
+		.. "<li>" .. translate("Auto: Prefer mainland China IPs returned by direct DNS and fall back to remote DNS when no usable result is available.") .. "</li>"
 		.. "</ul>"
 	o:depends({dns_shunt = "smartdns", tcp_proxy_mode = "proxy", chn_list = "direct"})
 end
